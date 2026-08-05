@@ -1,5 +1,6 @@
 package com.apulia.apigateway.security;
 
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -9,16 +10,22 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 @Component
+@Order(0)
 public class BearerTokenFilter implements WebFilter {
 
-    private final com.apulia.apigateway.security.SimpleTokenService tokenService;
+    private final JwtTokenService tokenService;
 
-    public BearerTokenFilter(com.apulia.apigateway.security.SimpleTokenService tokenService) {
+    public BearerTokenFilter(JwtTokenService tokenService) {
         this.tokenService = tokenService;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+
+        String path = exchange.getRequest().getPath().value();
+        if ("/auth/token".equals(path)) {
+            return chain.filter(exchange);
+        }
 
         String auth = exchange.getRequest().getHeaders().getFirst("Authorization");
 

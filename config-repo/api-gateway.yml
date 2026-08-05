@@ -19,9 +19,9 @@ spring:
             - Path=/loans, /loans/**
 
 security:
-  tokens:
-    valid:
-      - ${API_GATEWAY_TOKEN}
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: 3600           # secondi, default 1h
 
 ratelimit:
   capacity: 10

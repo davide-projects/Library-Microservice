@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Library Microservice Architecture",
-    "description": "Collezione completa per l'API Gateway del sistema Apulia Library.\n\n## Autenticazione\nTutte le richieste richiedono l'header:\n```\nAuthorization: Bearer {{token}}\n```\n\n## Setup rapido\n1. Importa questa collection\n2. Importa l'environment `Local-Environment.postman_environment.json`\n3. Seleziona l'environment \"Local Gateway (8080)\"\n4. Avvia i servizi con `docker-compose up -d`\n5. Inizia con `Authentication > Health Check`",
+    "description": "Collezione completa per l'API Gateway del sistema Apulia Library.\n\n## Autenticazione\nTutte le richieste richiedono un token JWT valido (ottenuto da `GET /auth/token`) tramite header:\n```\nAuthorization: Bearer {{token}}\n```\n\n## Setup rapido\n1. Importa questa collection\n2. Importa l'environment `Local-Environment.postman_environment.json`\n3. Seleziona l'environment \"Local Gateway (8080)\"\n4. Avvia i servizi con `docker-compose up -d`\n5. Esegui prima `Authentication > Get Token` (imposta automaticamente la variabile `token`)\n6. Inizia con `Authentication > Health Check`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "library-microservice"
   },
@@ -38,6 +38,34 @@
               "path": ["book"]
             },
             "description": "Verifica che il gateway sia raggiungibile e il token sia valido."
+          }
+        },
+        {
+          "name": "Get Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('token', json.token);",
+                  "pm.collectionVariables.set('token', json.token);",
+                  "pm.test('Token saved', () => pm.expect(json.token).to.have.length.at.least(20));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "token"]
+            },
+            "description": "Emette un nuovo JWT HS256 dal gateway e salva il valore nella variabile `token`."
           }
         }
       ],
@@ -854,7 +882,7 @@
     },
     {
       "key": "token",
-      "value": "my-secret-token-123",
+      "value": "",
       "type": "string"
     }
   ]

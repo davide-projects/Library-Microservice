@@ -10,7 +10,7 @@ Il progetto e' composto da tre microservizi di business indipendenti piu' un API
 
 | Servizio | Descrizione | Porta interna | Health check | Accessibile dall'esterno |
 |---|---|---|---|---|---|
-| API Gateway | Gateway d'ingresso e autenticazione Bearer Token | `8080` | `/actuator/health` (richiede token) | **Si'** |
+| API Gateway | Gateway d'ingresso e autenticazione JWT (HS256) | `8080` | `/actuator/health` (richiede token) | **Si'** |
 | Config Server | Configurazione centralizzata (Spring Cloud Config) | `8888` | `/actuator/health` | Solo health check |
 | Book Service | Gestione del catalogo libri | `8081` | `/actuator/health` | No (solo via gateway) |
 | Member Service | Gestione degli utenti iscritti | `8082` | `/actuator/health` | No (solo via gateway) |
@@ -36,7 +36,7 @@ Ogni microservizio espone l'endpoint `/actuator/health` di Spring Boot Actuator 
 - Spring Security (tutti i microservizi: CORS ristretto, CSRF disabilitato)
 - Spring Cloud Config (Config Server + Client)
 - Spring Retry (config client con fail-fast)
-- Spring Cloud Gateway (API Gateway routing + Bearer Token filter)
+- Spring Cloud Gateway (API Gateway routing + JWT HS256 filter)
 - Spring Boot Actuator (health check su tutti i microservizi)
 - Spring Validation
 - Springdoc OpenAPI 2.8.9
@@ -51,14 +51,30 @@ Ogni microservizio espone l'endpoint `/actuator/health` di Spring Boot Actuator 
 
 ## API Gateway (Porta `8080`)
 
-L'**API Gateway** agisce come punto di ingresso unico per tutte le richieste esterne ed esegue il routing dinamico verso i microservizi interni. Inoltre, implementa un filtro di sicurezza Bearer Token.
+L'**API Gateway** agisce come punto di ingresso unico per tutte le richieste esterne ed esegue il routing dinamico verso i microservizi interni. Inoltre, implementa un filtro di sicurezza che valida token **JWT HS256** firmati con un secret condiviso (`JWT_SECRET`).
 
 ### Autenticazione
-Tutte le chiamate instradate tramite il Gateway sulla porta `8080` richiedono l'autenticazione tramite un header HTTP `Authorization`:
+Tutte le chiamate instradate tramite il Gateway sulla porta `8080` richiedono un token **JWT HS256** valido, trasmesso tramite l'header HTTP `Authorization`:
 ```http
-Authorization: Bearer my-secret-token-123
+Authorization: Bearer <jwt>
 ```
-In caso di token mancante o errato, il gateway restituira' `401 Unauthorized` con header `WWW-Authenticate: Bearer`.
+
+Il token si ottiene dall'endpoint di sviluppo del gateway:
+
+```bash
+curl http://localhost:8080/auth/token
+```
+
+Risposta:
+
+```json
+{
+  "token": "<jwt>",
+  "expiresAt": "2026-08-05T12:00:00Z"
+}
+```
+
+In caso di token mancante, malformato, scaduto o firmato con un secret diverso, il gateway restituisce `401 Unauthorized` con header `WWW-Authenticate: Bearer`.
 
 ### Rate Limiting
 Il gateway applica un rate limit di **10 richieste ogni 60 secondi** per IP client. Al superamento, restituisce `429 Too Many Requests` con body JSON contenente messaggio esplicativo, `retryAfterSeconds` e `resetTime` (ISO-8601):
@@ -95,7 +111,7 @@ Prima di avviare, creare il file `.env` nella root del progetto (una copia di `.
 cp .env.example .env
 ```
 
-Il file `.env` contiene le credenziali sensibili (MySQL, token API Gateway) ed e' escluso da git.
+Il file `.env` contiene le credenziali sensibili (MySQL, secret JWT del gateway) ed e' escluso da git.
 
 ### Build delle immagini e compilazione jar
 
@@ -258,7 +274,7 @@ Library-Microservice-Architecture/
 - [x] Circuit Breaker + Retry + TimeLimiter (Resilience4j) su chiamate REST loanâ†’book/member
 - [x] Gestione errori `ResourceAccessException` con fallback a `503 Service Unavailable`
 - [x] Bulkhead + Rate Limiter (Resilience4j) su book-service e member-service
-- [ ] Autenticazione JWT / OAuth2 (Keycloak)
+- [x] Autenticazione JWT / OAuth2 (Keycloak)
 
 ---
 
@@ -307,8 +323,9 @@ I servizi leaf (book-service e member-service) non effettuano chiamate HTTP outg
 
 > **Prerequisito**: I servizi devono essere avviati (tramite `docker-compose up -d`). Tutte le richieste devono passare dal **Gateway sulla porta `8080`** con header:
 > ```
-> Authorization: Bearer my-secret-token-123
+> Authorization: Bearer <jwt>
 > ```
+> Ottieni un JWT con `curl http://localhost:8080/auth/token` oppure, in Postman, esegui la richiesta `Authentication > Get Token`.
 
 ### Rate Limiter (book-service)
 
@@ -353,8 +370,9 @@ Il bulkhead limita le **chiamate concorrenti** (non la frequenza). Con Postman Ã
 2. Riavvia: `docker-compose restart book-service`
 3. Esegui in PowerShell:
    ```powershell
+   $token = (Invoke-RestMethod -Uri "http://localhost:8080/auth/token").token
    $url = "http://localhost:8080/book"
-   $headers = @{ Authorization = "Bearer my-secret-token-123" }
+   $headers = @{ Authorization = "Bearer $token" }
    1..15 | ForEach-Object -Parallel {
        try {
            $r = Invoke-WebRequest -Uri $url -Headers $headers -UseBasicParsing
@@ -369,7 +387,7 @@ Il bulkhead limita le **chiamate concorrenti** (non la frequenza). Con Postman Ã
 **Opzione 2 â€” Apache Bench**:
 
 ```bash
-ab -n 15 -c 15 -H "Authorization: Bearer my-secret-token-123" http://localhost:8080/book
+ab -n 15 -c 15 -H "Authorization: Bearer <jwt>" http://localhost:8080/book
 ```
 
 Con `max-concurrent-calls=2`, circa 13 richieste su 15 riceveranno `503`.
