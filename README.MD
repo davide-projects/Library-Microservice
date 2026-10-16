@@ -257,30 +257,6 @@ Library-Microservice-Architecture/
 
 ---
 
-## TO-DO
-
-- [x] Aggiungere API Gateway con Bearer Token Authentication
-- [x] Containerizzare MySQL nel docker-compose
-- [x] Bloccare accesso diretto ai microservizi (solo gateway esposto)
-- [x] Centralizzare la configurazione (Spring Cloud Config)
-- [x] Credenziali in `.env` (escluse da git)
-- [x] Spring Security su tutti i microservizi (CORS ristretto)
-- [x] Token Gateway passato via variabile d'ambiente
-- [x] Sanificazione error handlers (400 per input malformati/non numerici, no leak dettagli interni)
-- [x] Fix sicurezza: NPE in TokenProperties, WWW-Authenticate su 401, SSL MySQL via HikariCP
-- [x] Validazione input (PATCH con DTO, phone uniqueness)
-- [x] Migrazioni database con Flyway
-- [x] Rate limiting sul gateway (Bucket4j)
-- [x] Circuit Breaker + Retry + TimeLimiter (Resilience4j) su chiamate REST loan→book/member
-- [x] Gestione errori `ResourceAccessException` con fallback a `503 Service Unavailable`
-- [x] Bulkhead + Rate Limiter (Resilience4j) su book-service e member-service
-- [x] Autenticazione JWT / OAuth2 (Keycloak)
-- [ ] Sistema di audit (Envers + soft delete sulle tabelle `book`/`members`/`loans` + eventi di sicurezza su MongoDB)
-- [ ] Carrello & pagamento simulato con validazione Luhn (nuovo `payment-service`)
-- [ ] Coda RabbitMQ per l'elaborazione asincrona dei prestiti
-
----
-
 ## Resilienza (Resilience4j)
 
 Il progetto implementa pattern di resilienza tramite **Resilience4j** per gestire guasti e sovraccarico.

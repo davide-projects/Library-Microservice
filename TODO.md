@@ -4,7 +4,7 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 (Apulia Library — microservices).
 
 **Convenzioni**
-- Ogni fase si chiude con test, aggiornamento della documentazione e commit + push su `dev` (vedi [Versionamento Git](#versionamento-git)).
+- Ogni fase si chiude con test, aggiornamento della documentazione e commit + push su `dev` (vedi [VERSIONING.md](VERSIONING.md)).
 - Nessuna fase inizia prima che le sue dipendenze siano concluse.
 - Ordine: `A -> B -> C -> D -> E -> F -> G -> H`.
 
@@ -102,7 +102,7 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - [ ] H2. Test end-to-end (Postman) dei flussi admin/user, audit, logging, carrello/pagamento e coda.
 - [ ] H3. Esecuzione completa della suite: `.\mvnw.cmd test`.
 - [ ] H4. Avvio integrato: `docker-compose up -d` e verifica health check.
-- [ ] H5. Release git: merge `dev` → `prod`, tag `vX.Y.Z`, sincronizzazione `backup` — solo con H2–H4 OK (vedi [Versionamento Git](#versionamento-git)).
+- [ ] H5. Release git: merge `dev` → `prod`, tag `vX.Y.Z`, sincronizzazione `backup` — solo con H2–H4 OK (vedi [VERSIONING.md](VERSIONING.md)).
 
 ---
 
@@ -122,60 +122,3 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - `F -> H` e `G -> H`: la chiusura comprende anche le nuove fasi.
 
 ---
-
-## Versionamento Git
-
-Repository: <https://github.com/davide-projects/Library-Microservice-Architecture>
-
-| Branch | Ruolo |
-|---|---|
-| `dev` (default) | sviluppo quotidiano: qui avvengono tutti i commit di lavoro e di fase |
-| `prod` | snapshot stabile, raggiunto solo da merge verificati di `dev` |
-| `backup` | copia di sicurezza allineata a `prod` (e a `dev` a lavoro concluso) |
-
-### Quando versionare
-
-1. **A fine task** (ogni singolo item `- [ ]` o gruppo coerente di item) → commit su `dev`: non si inizia una fase con il working tree sporco.
-2. **A fine fase** (test verdi + documentazione aggiornata) → commit + `git push origin dev`.
-3. **Merge `dev` → `prod` + tag `vX.Y.Z` solo quando**:
-   - `.\mvnw.cmd test` verde su tutti i moduli;
-   - `docker-compose up -d` con tutti gli health check `healthy`;
-   - test end-to-end Postman OK.
-4. **Dopo ogni release** → sincronizzare `backup` come snapshot.
-
-### Come versionare
-
-Convenzione dei messaggi (allinea lo storico misto `Feature:` / `feature:`):
-
-| Prefisso | Uso |
-|---|---|
-| `Feature:` | nuova funzionalità o fase completata |
-| `Fix:` | correzione di bug o comportamento |
-| `Test:` | aggiunta/modifica di test |
-| `DOCS:` | documentazione (README, TODO, jwt-task) |
-| `Chore:` | build, dipendenze, configurazione, docker |
-
-Commit di lavoro:
-
-```bash
-git status          # mai committare .env, target/ o *.log (già in .gitignore)
-git add <file>
-git commit -m "Feature: descrizione"
-git push origin dev
-```
-
-Procedura di release:
-
-```bash
-git checkout dev
-git push origin dev                 # dev aggiornato e testato
-
-git checkout prod
-git merge dev
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin prod --tags
-
-git checkout backup
-git merge prod
-git push origin backup
-```
