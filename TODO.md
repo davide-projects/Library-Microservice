@@ -4,9 +4,9 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 (Apulia Library — microservices).
 
 **Convenzioni**
-- Ogni fase si chiude con test e aggiornamento della documentazione.
+- Ogni fase si chiude con test, aggiornamento della documentazione e commit + push su `dev` (vedi [Versionamento Git](#versionamento-git)).
 - Nessuna fase inizia prima che le sue dipendenze siano concluse.
-- Ordine: `A -> B -> C -> D -> E -> F`.
+- Ordine: `A -> B -> C -> D -> E -> F -> G -> H`.
 
 ---
 
@@ -41,9 +41,11 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - [ ] C1. Hibernate Envers (`@Audited`) su `book`, `members`, `loans` (tabelle `*_AUD` + `REVINFO`).
 - [ ] C2. `MappedSuperclass` con `created_at` / `updated_at` / `created_by` / `updated_by` + `AuditorAware` basato sull'identità (dipende da A).
 - [ ] C3. Migrazioni Flyway per le colonne temporali e di autore.
-- [ ] C4. Audit degli eventi di sicurezza (login ok/ko, accessi negati) come documenti su MongoDB.
-- [ ] C5. Endpoint di consultazione audit riservati al ruolo ADMIN.
-- [ ] C6. **Unit test**: interrogazione revisioni Envers, popolamento automatico dei campi di auditing, registrazione eventi.
+- [ ] C4. **Soft delete** (eliminazione logica) sul db relazionale: colonna `deleted_at` (nullable) su `book`, `members`, `loans` in una migrazione Flyway; le endpoint `DELETE` impostano `deleted_at` invece di rimuovere la riga.
+- [ ] C5. Filtri e coerenza del soft delete: liste/ricerche di default escludono i record eliminati (`deleted_at IS NULL`), il ruolo ADMIN può richiederli, regole di business (es. libro con prestito attivo non eliminabile, record eliminato non selezionabile in nuovi prestiti).
+- [ ] C6. Audit degli eventi di sicurezza (login ok/ko, accessi negati) come documenti su MongoDB.
+- [ ] C7. Endpoint di consultazione audit riservati al ruolo ADMIN (incluse le revisioni Envers generate dalle eliminazioni logiche).
+- [ ] C8. **Unit test**: interrogazione revisioni Envers, popolamento automatico dei campi di auditing, registrazione eventi, soft delete (record eliminato non compare nelle query e `deleted_at` è valorizzato).
 
 ---
 
@@ -69,12 +71,38 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 
 ---
 
-## Fase F — Chiusura
+## Fase F — Carrello & Pagamento simulato (`payment-service`)
 
-- [ ] F1. Aggiornare `config-repo`, `docker-compose.yml`, `.env.example`, `README`.
-- [ ] F2. Test end-to-end (Postman) dei flussi admin/user, audit e logging.
-- [ ] F3. Esecuzione completa della suite: `.\mvnw.cmd test`.
-- [ ] F4. Avvio integrato: `docker-compose up -d` e verifica health check.
+- [ ] F1. Creare il modulo Maven `payment-service` (Spring Web, Validation, Data JPA, Flyway, Lombok): modulo nel `pom.xml` parent, `Dockerfile`, porta interna, `library-network` in `docker-compose.yml`.
+- [ ] F2. `payment_service_db` in `mysql/init.sql` + relativi privilegi; migrazioni Flyway `carts`, `cart_items`, `payments` (storico pagamenti senza PAN completo).
+- [ ] F3. Carrello per utente autenticato (identità da header `X-User-Id`, dipende da A): `add` / `remove` / `list` + calcolo del costo totale; persistenza su Redis con TTL di sessione (dipende da E1/E3).
+- [ ] F4. Endpoint di checkout: riepilogo dei costi + inserimento della carta di credito (numero, scadenza, cvv); il PAN completo non viene persistito ed è mascherato nei log (dipende da D4).
+- [ ] F5. Validazione della carta con **algoritmo di Luhn (mod10)** + vincoli di lunghezza (13–19 cifre) e scadenza: numero non valido → `400 Bad Request` con messaggio dedicato e nessun passaggio alla fase successiva.
+- [ ] F6. Simulazione di approvazione/declino (carte test note approvate/declinate, nessuna chiamata a gateway di pagamento reali): solo un pagamento `APPROVED` passa alla fase successiva (→ Fase G).
+- [ ] F7. Route gateway `/cart` e `/checkout` + regole `ROLE_USER` (dipende da B3).
+- [ ] F8. **Unit test**: carte Luhn valide/invalidhe note (es. `4242…`, `4000…`), rifiuto di un numero corrotto (400), declino del simulatore, calcolo del totale del carrello, 401/403 sui nuovi endpoint.
+
+---
+
+## Fase G — Coda di elaborazione (RabbitMQ)
+
+- [ ] G1. Container `rabbitmq` in `docker-compose.yml` (volumi, healthcheck, `library-network`, management UI) + dipendenze `spring-boot-starter-amqp` nei moduli coinvolti.
+- [ ] G2. Producer in `payment-service`: pagamento `APPROVED` → messaggio `LoanRequested` (`memberId`, `bookIds`, `cartId`, `paymentId`) sulla queue `loans.created`.
+- [ ] G3. Consumer in `loan-service`: riusa della logica esistente di `createLoans` (validazione libro/membro, controllo del doppio prestito) per consumare la coda.
+- [ ] G4. Stati e idempotenza: esito dell'elaborazione salvato (`PENDING` / `COMPLETED` / `FAILED`), messaggi ripetuti non creano doppi prestiti, stato dell'ordine esposto all'utente.
+- [ ] G5. Gestione degli errori: messaggio fallito (es. libro già prestato o eliminato con soft delete) → retry / DLQ, nessun rilascio silenzioso del messaggio.
+- [ ] G6. `config-repo`: nomi delle queue, retry e concorrenza dei consumer (`payment-service.yml`, `loan-service.yml`).
+- [ ] G7. **Unit test**: serializzazione/deserializzazione del messaggio, consumer happy path, messaggio fallito → stato `FAILED`, nessun double-loan.
+
+---
+
+## Fase H — Chiusura
+
+- [ ] H1. Aggiornare `config-repo`, `docker-compose.yml`, `.env.example`, `README`.
+- [ ] H2. Test end-to-end (Postman) dei flussi admin/user, audit, logging, carrello/pagamento e coda.
+- [ ] H3. Esecuzione completa della suite: `.\mvnw.cmd test`.
+- [ ] H4. Avvio integrato: `docker-compose up -d` e verifica health check.
+- [ ] H5. Release git: merge `dev` → `prod`, tag `vX.Y.Z`, sincronizzazione `backup` — solo con H2–H4 OK (vedi [Versionamento Git](#versionamento-git)).
 
 ---
 
@@ -84,4 +112,70 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - `A -> C`: l'audit "chi" richiede la propagazione dell'identità.
 - `A -> E3`: blacklist/refresh su Redis richiedono `jti` e refresh token.
 - `C1 -> E2`: gli eventi di audit alimentano `audit-service` (MongoDB).
+- `A -> F`: carrello e checkout appartengono a un utente autenticato.
+- `B3 -> F`: le route `/cart` e `/checkout` richiedono le regole di routing per ruolo.
+- `E1/E3 -> F`: il carrello è persistito su Redis.
+- `D4 -> F`: il PAN della carta di credito non deve comparire nei log (masking).
+- `C4/C5 -> G`: la coda non deve creare prestiti su record eliminati (soft delete).
+- `F -> G`: solo un pagamento approvato alimenta la coda RabbitMQ.
 - `D` trasversale: può procedere dopo B, in parallelo a C.
+- `F -> H` e `G -> H`: la chiusura comprende anche le nuove fasi.
+
+---
+
+## Versionamento Git
+
+Repository: <https://github.com/davide-projects/Library-Microservice-Architecture>
+
+| Branch | Ruolo |
+|---|---|
+| `dev` (default) | sviluppo quotidiano: qui avvengono tutti i commit di lavoro e di fase |
+| `prod` | snapshot stabile, raggiunto solo da merge verificati di `dev` |
+| `backup` | copia di sicurezza allineata a `prod` (e a `dev` a lavoro concluso) |
+
+### Quando versionare
+
+1. **A fine task** (ogni singolo item `- [ ]` o gruppo coerente di item) → commit su `dev`: non si inizia una fase con il working tree sporco.
+2. **A fine fase** (test verdi + documentazione aggiornata) → commit + `git push origin dev`.
+3. **Merge `dev` → `prod` + tag `vX.Y.Z` solo quando**:
+   - `.\mvnw.cmd test` verde su tutti i moduli;
+   - `docker-compose up -d` con tutti gli health check `healthy`;
+   - test end-to-end Postman OK.
+4. **Dopo ogni release** → sincronizzare `backup` come snapshot.
+
+### Come versionare
+
+Convenzione dei messaggi (allinea lo storico misto `Feature:` / `feature:`):
+
+| Prefisso | Uso |
+|---|---|
+| `Feature:` | nuova funzionalità o fase completata |
+| `Fix:` | correzione di bug o comportamento |
+| `Test:` | aggiunta/modifica di test |
+| `DOCS:` | documentazione (README, TODO, jwt-task) |
+| `Chore:` | build, dipendenze, configurazione, docker |
+
+Commit di lavoro:
+
+```bash
+git status          # mai committare .env, target/ o *.log (già in .gitignore)
+git add <file>
+git commit -m "Feature: descrizione"
+git push origin dev
+```
+
+Procedura di release:
+
+```bash
+git checkout dev
+git push origin dev                 # dev aggiornato e testato
+
+git checkout prod
+git merge dev
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin prod --tags
+
+git checkout backup
+git merge prod
+git push origin backup
+```

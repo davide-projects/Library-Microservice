@@ -275,6 +275,9 @@ Library-Microservice-Architecture/
 - [x] Gestione errori `ResourceAccessException` con fallback a `503 Service Unavailable`
 - [x] Bulkhead + Rate Limiter (Resilience4j) su book-service e member-service
 - [x] Autenticazione JWT / OAuth2 (Keycloak)
+- [ ] Sistema di audit (Envers + soft delete sulle tabelle `book`/`members`/`loans` + eventi di sicurezza su MongoDB)
+- [ ] Carrello & pagamento simulato con validazione Luhn (nuovo `payment-service`)
+- [ ] Coda RabbitMQ per l'elaborazione asincrona dei prestiti
 
 ---
 
