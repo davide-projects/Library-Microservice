@@ -14,8 +14,8 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 
 - [x] A1. Creare i moduli Maven `auth-service` (Spring Web, Security, Data JPA, Validation, Flyway, jjwt, Lombok) e `identity-common` (libreria condivisa: `IdentityResolver`, validazione JWT downstream, nessuna dipendenza dai servizi).
 - [x] A2. Aggiungere entrambi i moduli al `pom.xml` parent; `auth-service` anche a `docker-compose.yml` (Dockerfile, porta interna, `library-network`) — `identity-common` è una libreria, senza container.
-- [ ] A3. Aggiungere `auth_service_db` in `mysql/init.sql` + relativi privilegi.
-- [ ] A4. Migrazioni Flyway: `users`, `roles`, `user_roles` + `revoked_tokens` (jti revocati) + `refresh_tokens` (revocabili, rotazione) — persistenza provvisoria su DB, sostituibile con Redis in Fase E.
+- [x] A3. Aggiungere `auth_service_db` in `mysql/init.sql` + relativi privilegi.
+- [x] A4. Migrazioni Flyway: `users`, `roles`, `user_roles` + `revoked_tokens` (jti revocati) + `refresh_tokens` (revocabili, rotazione) — persistenza provvisoria su DB, sostituibile con Redis in Fase E.
 - [ ] A5. Entity/repository per utenti e ruoli; password con BCrypt.
 - [ ] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca; emissione di access + refresh token con `jti` distinti.
 - [ ] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout` (la dismissione del vecchio `GET /auth/token` slitta alla Fase B, vedi B1).
