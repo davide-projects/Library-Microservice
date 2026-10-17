@@ -17,7 +17,7 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - [x] A3. Aggiungere `auth_service_db` in `mysql/init.sql` + relativi privilegi.
 - [x] A4. Migrazioni Flyway: `users`, `roles`, `user_roles` + `revoked_tokens` (jti revocati) + `refresh_tokens` (revocabili, rotazione) — persistenza provvisoria su DB, sostituibile con Redis in Fase E.
 - [x] A5. Entity/repository per utenti e ruoli; password con BCrypt.
-- [ ] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca; emissione di access + refresh token con `jti` distinti.
+- [x] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca; emissione di access + refresh token con `jti` distinti.
 - [ ] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout` (la dismissione del vecchio `GET /auth/token` slitta alla Fase B, vedi B1).
 - [ ] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Role` dal gateway + parsing JWT downstream) consumando la libreria `identity-common`, senza logica duplicata nei servizi.
 - [x] A9. `config-repo/auth-service.yml` + secret JWT condiviso via `JWT_SECRET`.
