@@ -12,14 +12,14 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 
 ## Fase A — Identità (`auth-service`)
 
-- [ ] A1. Creare il modulo Maven `auth-service` (Spring Web, Security, Data JPA, Validation, Flyway, jjwt, Lombok).
-- [ ] A2. Aggiungere il modulo al `pom.xml` parent e a `docker-compose.yml` (Dockerfile, porta interna, `library-network`).
+- [x] A1. Creare i moduli Maven `auth-service` (Spring Web, Security, Data JPA, Validation, Flyway, jjwt, Lombok) e `identity-common` (libreria condivisa: `IdentityResolver`, validazione JWT downstream, nessuna dipendenza dai servizi).
+- [x] A2. Aggiungere entrambi i moduli al `pom.xml` parent; `auth-service` anche a `docker-compose.yml` (Dockerfile, porta interna, `library-network`) — `identity-common` è una libreria, senza container.
 - [ ] A3. Aggiungere `auth_service_db` in `mysql/init.sql` + relativi privilegi.
-- [ ] A4. Migrazioni Flyway: `users`, `roles`, `user_roles`.
+- [ ] A4. Migrazioni Flyway: `users`, `roles`, `user_roles` + `revoked_tokens` (jti revocati) + `refresh_tokens` (revocabili, rotazione) — persistenza provvisoria su DB, sostituibile con Redis in Fase E.
 - [ ] A5. Entity/repository per utenti e ruoli; password con BCrypt.
-- [ ] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca.
-- [ ] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout`; dismissione del vecchio `GET /auth/token`.
-- [ ] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Role` dal gateway + parsing JWT downstream).
+- [ ] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca; emissione di access + refresh token con `jti` distinti.
+- [ ] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout` (la dismissione del vecchio `GET /auth/token` slitta alla Fase B, vedi B1).
+- [ ] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Role` dal gateway + parsing JWT downstream) consumando la libreria `identity-common`, senza logica duplicata nei servizi.
 - [ ] A9. `config-repo/auth-service.yml` + secret JWT condiviso via `JWT_SECRET`.
 - [ ] A10. **Unit test**: generazione/validazione token, encoding password, login valido/non valido, revoca (`jti`).
 
@@ -27,7 +27,7 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 
 ## Fase B — Autorizzazione (gateway + servizi)
 
-- [ ] B1. Gateway: `SecurityWebFilterChain` + resource server JWT, rimozione dei `WebFilter` manuali (`BearerTokenFilter`, `AuthTokenFilter`).
+- [ ] B1. Gateway: `SecurityWebFilterChain` + resource server JWT, rimozione dei `WebFilter` manuali (`BearerTokenFilter`, `AuthTokenFilter`) e dismissione dell'endpoint di sviluppo `GET /auth/token` (slittata dalla Fase A).
 - [ ] B2. Validazione firma/scadenza/issuer/ruoli sul gateway.
 - [ ] B3. Regole di route: `ROLE_ADMIN` = CRUD completo + lettura audit; `ROLE_USER` = GET catalogo + prestiti propri.
 - [ ] B4. Servizi: `@EnableMethodSecurity` + `@PreAuthorize`, rimozione del `permitAll`.
