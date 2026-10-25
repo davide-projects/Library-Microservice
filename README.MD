@@ -226,6 +226,8 @@ Microservizio dedicato alla gestione dei prestiti. Interagisce internamente via 
 
 ```
 Library-Microservice-Architecture/
+├── .opencode/                 (agenti e comandi di automazione)
+├── AGENTS.md                  (documentazione degli agenti)
 ├── pom.xml                    (parent multi-modulo)
 ├── docker-compose.yml         (configurazione orchestratore docker)
 ├── docker-compose.school.yml  (variante per ambiente scolastico)
@@ -253,7 +255,26 @@ Library-Microservice-Architecture/
 └── loan-service/              (Gestione prestiti)
     ├── Dockerfile
     └── src/main/
+├── .opencode/                 (agenti e comandi di automazione)
+├── AGENTS.md                  (documentazione degli agenti)
 ```
+
+---
+
+## Agenti di automazione
+
+Il progetto usa agenti OpenCode di progetto (cartella `.opencode/agent/`) per automatizzare le procedure ripetute a ogni fase. Sono introdotti a fine Fase A e usati da Fase B in poi.
+
+| Agente | Scopo | Quando usarlo |
+|---|---|---|
+| `phase-review` | Verifica i criteri di accettazione della fase corrente (compile, test, endpoint, migrazioni) e propone l'aggiornamento dei checkbox in `TODO.md` | Fine di ogni fase |
+| `test-runner` | Esegue `.\mvnw.cmd test` sul modulo o sull'intero reactor, riassume fallimenti e flaky test | Prima di ogni commit/merge |
+| `api-contract` | Confronta i controller con la collection `postman/` e l'OpenAPI, segnalando drift su route/metodi/status/payload | Dopo modifiche agli endpoint |
+| `migration-guard` | Valida le migrazioni Flyway (numerazione, coerenza con le entity JPA, `ddl-auto: validate`) | Prima del commit di una migrazione |
+| `security-review` | Controlla `permitAll`, validazione JWT, secret fuori dal repo, header/CORS e dipendenze vulnerabili | Prima di un merge in `dev` |
+| `release` | Esegue il flusso di `VERSIONING.md` (feature → dev → prod, tag, backup) | Solo dopo H2–H4 |
+
+> Gli agenti **propongono** modifiche e report; non spuntano checkbox né fanno merge automaticamente. La configurazione è versionata in `.opencode/` e documentata in `AGENTS.md`.
 
 ---
 
