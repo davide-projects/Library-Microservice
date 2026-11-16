@@ -2,7 +2,7 @@ package com.apulia.authservice.model;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Objects;
 
 @Entity(name = "revoked_tokens")
@@ -13,14 +13,14 @@ public class RevokedToken {
     private String jti;
 
     @Column(nullable = false, name = "expires_at")
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @Column(name = "revoked_at", insertable = false, updatable = false)
-    private LocalDateTime revokedAt;
+    private Instant revokedAt;
 
     public RevokedToken() {}
 
-    public RevokedToken(String jti, LocalDateTime expiresAt) {
+    public RevokedToken(String jti, Instant expiresAt) {
         this.jti = jti;
         this.expiresAt = expiresAt;
     }
@@ -33,15 +33,15 @@ public class RevokedToken {
         this.jti = jti;
     }
 
-    public LocalDateTime getExpiresAt() {
+    public Instant getExpiresAt() {
         return expiresAt;
     }
 
-    public void setExpiresAt(LocalDateTime expiresAt) {
+    public void setExpiresAt(Instant expiresAt) {
         this.expiresAt = expiresAt;
     }
 
-    public LocalDateTime getRevokedAt() {
+    public Instant getRevokedAt() {
         return revokedAt;
     }
 

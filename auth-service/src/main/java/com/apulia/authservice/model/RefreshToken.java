@@ -2,7 +2,7 @@ package com.apulia.authservice.model;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Objects;
 
 @Entity(name = "refresh_tokens")
@@ -17,20 +17,20 @@ public class RefreshToken {
     private User user;
 
     @Column(nullable = false, name = "expires_at")
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @Column(name = "revoked_at")
-    private LocalDateTime revokedAt;
+    private Instant revokedAt;
 
     @Column(name = "replaced_by_jti")
     private String replacedByJti;
 
     @Column(name = "created_at", insertable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public RefreshToken() {}
 
-    public RefreshToken(String jti, User user, LocalDateTime expiresAt) {
+    public RefreshToken(String jti, User user, Instant expiresAt) {
         this.jti = jti;
         this.user = user;
         this.expiresAt = expiresAt;
@@ -52,19 +52,19 @@ public class RefreshToken {
         this.user = user;
     }
 
-    public LocalDateTime getExpiresAt() {
+    public Instant getExpiresAt() {
         return expiresAt;
     }
 
-    public void setExpiresAt(LocalDateTime expiresAt) {
+    public void setExpiresAt(Instant expiresAt) {
         this.expiresAt = expiresAt;
     }
 
-    public LocalDateTime getRevokedAt() {
+    public Instant getRevokedAt() {
         return revokedAt;
     }
 
-    public void setRevokedAt(LocalDateTime revokedAt) {
+    public void setRevokedAt(Instant revokedAt) {
         this.revokedAt = revokedAt;
     }
 
@@ -76,7 +76,7 @@ public class RefreshToken {
         this.replacedByJti = replacedByJti;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 

@@ -105,6 +105,6 @@ public class JwtTokenProvider implements TokenProvider {
                 .signWith(key)
                 .compact();
 
-        return new IssuedToken(value, jti, expiresAt);
+        return new IssuedToken(value, jti, now, expiresAt);
     }
 }
