@@ -53,3 +53,9 @@ resilience4j:
         base-config: default
       memberService:
         base-config: default
+
+# Contratto di identita' usato da identity-common anche nei test di contesto.
+security:
+  jwt:
+    issuer: auth-service
+    secret: test-secret-test-secret-test-secret-1234

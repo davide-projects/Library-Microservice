@@ -6,28 +6,46 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 **Convenzioni**
 - Ogni fase si chiude con test, aggiornamento della documentazione e commit + push su `dev` (vedi [VERSIONING.md](VERSIONING.md)).
 - Nessuna fase inizia prima che le sue dipendenze siano concluse.
-- Ordine: `A -> B -> C -> D -> E -> F -> G -> H`.
+- Ordine: `A -> A+ -> B -> C -> D -> E -> F -> G -> H`.
 
 ---
 
 ## Fase A — Identità (`auth-service`)
 
-- [ ] A1. Creare il modulo Maven `auth-service` (Spring Web, Security, Data JPA, Validation, Flyway, jjwt, Lombok).
-- [ ] A2. Aggiungere il modulo al `pom.xml` parent e a `docker-compose.yml` (Dockerfile, porta interna, `library-network`).
-- [ ] A3. Aggiungere `auth_service_db` in `mysql/init.sql` + relativi privilegi.
-- [ ] A4. Migrazioni Flyway: `users`, `roles`, `user_roles`.
-- [ ] A5. Entity/repository per utenti e ruoli; password con BCrypt.
-- [ ] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca.
-- [ ] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout`; dismissione del vecchio `GET /auth/token`.
-- [ ] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Role` dal gateway + parsing JWT downstream).
-- [ ] A9. `config-repo/auth-service.yml` + secret JWT condiviso via `JWT_SECRET`.
-- [ ] A10. **Unit test**: generazione/validazione token, encoding password, login valido/non valido, revoca (`jti`).
+- [x] A1. Creare i moduli Maven `auth-service` (Spring Web, Security, Data JPA, Validation, Flyway, jjwt, Lombok) e `identity-common` (libreria condivisa: `IdentityResolver`, validazione JWT downstream, nessuna dipendenza dai servizi).
+- [x] A2. Aggiungere entrambi i moduli al `pom.xml` parent; `auth-service` anche a `docker-compose.yml` (Dockerfile, porta interna, `library-network`) — `identity-common` è una libreria, senza container.
+- [x] A3. Aggiungere `auth_service_db` in `mysql/init.sql` + relativi privilegi.
+- [x] A4. Migrazioni Flyway: `users`, `roles`, `user_roles` + `revoked_tokens` (jti revocati) + `refresh_tokens` (revocabili, rotazione) — persistenza provvisoria su DB, sostituibile con Redis in Fase E.
+- [x] A5. Entity/repository per utenti e ruoli; password con BCrypt.
+- [x] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca; emissione di access + refresh token con `jti` distinti.
+- [x] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout` (la dismissione del vecchio `GET /auth/token` slitta alla Fase B, vedi B1).
+- [x] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Roles` dal gateway + parsing JWT downstream) consumando la libreria `identity-common`, senza logica duplicata nei servizi.
+- [x] A9. `config-repo/auth-service.yml` + secret JWT condiviso via `JWT_SECRET`.
+- [x] A10. **Unit test**: generazione/validazione token, encoding password, login valido/non valido, revoca (`jti`).
+
+---
+
+## Fase A+ — Agenti di automazione (fine A → inizio B)
+
+> Agenti OpenCode di progetto in `.opencode/agent/*.md` (con eventuali comandi in
+> `.opencode/command/*.md`), creati una sola volta a fine A e riusati da B in poi.
+> Ogni agente ha una sola responsabilità, output verificabile e non modifica il
+> codice senza conferma.
+
+- [ ] A+1. `phase-review`: verifica i criteri di accettazione della fase corrente (compile, test, endpoint, migrazioni) e propone l'aggiornamento dei checkbox in `TODO.md`, senza spuntarli autonomamente.
+- [ ] A+2. `test-runner`: esegue `.\mvnw.cmd test` sul modulo o sull'intero reactor, riassume test falliti/flaky e allega l'output; da usare a fine di ogni fase.
+- [ ] A+3. `api-contract`: confronta i controller con la collection `postman/` e con l'OpenAPI, segnala drift su route, metodi, status e payload e propone le modifiche.
+- [ ] A+4. `migration-guard`: valida le nuove migrazioni Flyway (numerazione `V*__*.sql` progressiva, coerenza con le entity JPA, `ddl-auto` solo `validate`).
+- [ ] A+5. `security-review`: controlla `permitAll`, validazione JWT, secret fuori dal repo, header/CORS e dipendenze vulnerabili; blocca il merge su findings critici.
+- [ ] A+6. `release`: propone (senza eseguire) la sequenza di comandi del flusso di `VERSIONING.md` (commit su `feature`, merge in `dev`, merge `dev`→`prod`, tag `vX.Y.Z`, sync `backup`) solo dopo H2–H4; le operazioni git restano manuali.
+- [ ] A+7. Documentare gli agenti in `AGENTS.md` (scopo, quando invocarli, limiti) e verificare che non duplichino regole già presenti in `TODO.md` / `VERSIONING.md`.
+- [ ] A+8. `phase-review` — estensione documentazione: oltre ai criteri di accettazione, verifica che `README.md`, `TODO.md`, OpenAPI e struttura reale del repository siano allineati (sezioni, comandi, file citati) e propone le correzioni senza applicarle. Nessun nuovo agente: stesso ruolo, un controllo in più.
 
 ---
 
 ## Fase B — Autorizzazione (gateway + servizi)
 
-- [ ] B1. Gateway: `SecurityWebFilterChain` + resource server JWT, rimozione dei `WebFilter` manuali (`BearerTokenFilter`, `AuthTokenFilter`).
+- [ ] B1. Gateway: `SecurityWebFilterChain` + resource server JWT, rimozione dei `WebFilter` manuali (`BearerTokenFilter`, `AuthTokenFilter`) e dismissione dell'endpoint di sviluppo `GET /auth/token` (slittata dalla Fase A).
 - [ ] B2. Validazione firma/scadenza/issuer/ruoli sul gateway.
 - [ ] B3. Regole di route: `ROLE_ADMIN` = CRUD completo + lettura audit; `ROLE_USER` = GET catalogo + prestiti propri.
 - [ ] B4. Servizi: `@EnableMethodSecurity` + `@PreAuthorize`, rimozione del `permitAll`.
@@ -113,11 +131,13 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - `A -> E3`: blacklist/refresh su Redis richiedono `jti` e refresh token.
 - `C1 -> E2`: gli eventi di audit alimentano `audit-service` (MongoDB).
 - `A -> F`: carrello e checkout appartengono a un utente autenticato.
+- `A+ -> B..H`: gli agenti di automazione si usano a partire dalla Fase B (fine A conclusa).
 - `B3 -> F`: le route `/cart` e `/checkout` richiedono le regole di routing per ruolo.
 - `E1/E3 -> F`: il carrello è persistito su Redis.
 - `D4 -> F`: il PAN della carta di credito non deve comparire nei log (masking).
 - `C4/C5 -> G`: la coda non deve creare prestiti su record eliminati (soft delete).
 - `F -> G`: solo un pagamento approvato alimenta la coda RabbitMQ.
+- `A+ -> B..H`: gli agenti di automazione si usano a partire dalla Fase B (fine A conclusa).
 - `D` trasversale: può procedere dopo B, in parallelo a C.
 - `F -> H` e `G -> H`: la chiusura comprende anche le nuove fasi.
 

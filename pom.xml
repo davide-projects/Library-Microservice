@@ -10,10 +10,12 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>identity-common</module>
         <module>config-server</module>
         <module>book-service</module>
         <module>member-service</module>
         <module>loan-service</module>
+        <module>auth-service</module>
         <module>api-gateway</module>
     </modules>
 
@@ -39,6 +41,11 @@
                 <version>${spring-cloud.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.microservice</groupId>
+                <artifactId>identity-common</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

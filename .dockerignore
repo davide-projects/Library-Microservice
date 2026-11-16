@@ -1,0 +1,7 @@
+.git
+.idea
+.vscode
+.env
+**/*.log
+auth-service/target
+identity-common/target

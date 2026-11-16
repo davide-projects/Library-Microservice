@@ -2,6 +2,7 @@ package com.apulia.apigateway.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import com.microservice.identity.JwtIdentityParser;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -22,6 +23,10 @@ class JwtTokenServiceTest {
         JwtProperties p = new JwtProperties();
         p.setSecret("0123456789abcdef0123456789abcdef");
         return p;
+    }
+
+    private JwtIdentityParser identityParser(JwtProperties p) {
+        return new JwtIdentityParser(p.getSecret(), p.getIssuer());
     }
 
     @Test
@@ -75,7 +80,8 @@ class JwtTokenServiceTest {
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(MockServerHttpRequest.get("/book"));
 
-        new BearerTokenFilter(new JwtTokenService(properties()))
+        JwtProperties properties = properties();
+        new BearerTokenFilter(new JwtTokenService(properties), identityParser(properties))
                 .filter(exchange, e -> Mono.empty())
                 .block();
 
@@ -89,7 +95,8 @@ class JwtTokenServiceTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/book").header("Authorization", "Basic abc"));
 
-        new BearerTokenFilter(new JwtTokenService(properties()))
+        JwtProperties properties = properties();
+        new BearerTokenFilter(new JwtTokenService(properties), identityParser(properties))
                 .filter(exchange, e -> Mono.empty())
                 .block();
 

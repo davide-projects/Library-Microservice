@@ -1,5 +1,7 @@
 package com.apulia.apigateway.security;
 
+import com.microservice.identity.JwtIdentityParser;
+
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -9,14 +11,26 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+/**
+ * Autentica le richieste in ingresso.
+ *
+ * <p>Durante A8 convivono i due formati: il token di sviluppo emesso da
+ * {@code GET /auth/token} (HS256, issuer {@code apulia-library}) e l'access token
+ * reale di auth-service (HS384, issuer {@code auth-service}, con {@code uid}).
+ * B1 rimuovera' il primo ramo e i due filtri legacy.</p>
+ */
 @Component
 @Order(0)
 public class BearerTokenFilter implements WebFilter {
 
-    private final JwtTokenService tokenService;
+    private static final String BEARER_PREFIX = "Bearer ";
 
-    public BearerTokenFilter(JwtTokenService tokenService) {
+    private final JwtTokenService tokenService;
+    private final JwtIdentityParser identityParser;
+
+    public BearerTokenFilter(JwtTokenService tokenService, JwtIdentityParser identityParser) {
         this.tokenService = tokenService;
+        this.identityParser = identityParser;
     }
 
     @Override
@@ -27,15 +41,16 @@ public class BearerTokenFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        String auth = exchange.getRequest().getHeaders().getFirst("Authorization");
+        String auth = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        if (auth == null || !auth.startsWith("Bearer ")) {
+        if (auth == null || !auth.startsWith(BEARER_PREFIX)) {
             return unauthorized(exchange);
         }
 
-        String token = auth.substring(7);
+        String token = auth.substring(BEARER_PREFIX.length()).trim();
 
-        if (!tokenService.isValid(token)) {
+        // Validazione transitoria: token legacy del gateway oppure access token di auth-service.
+        if (!tokenService.isValid(token) && identityParser.parse(token).isEmpty()) {
             return unauthorized(exchange);
         }
 
