@@ -6,18 +6,21 @@ Ecosistema di microservizi per la gestione di una biblioteca digitale, sviluppat
 
 ## Architettura
 
-Il progetto e' composto da tre microservizi di business indipendenti piu' un API Gateway d'ingresso, organizzati in un progetto Maven multi-modulo:
+Il progetto e' composto da quattro microservizi indipendenti (identita' e tre di business) piu' un API Gateway d'ingresso, organizzati in un progetto Maven multi-modulo:
 
 | Servizio | Descrizione | Porta interna | Health check | Accessibile dall'esterno |
 |---|---|---|---|---|---|
 | API Gateway | Gateway d'ingresso e autenticazione JWT (HS256) | `8080` | `/actuator/health` (richiede token) | **Si'** |
 | Config Server | Configurazione centralizzata (Spring Cloud Config) | `8888` | `/actuator/health` | Solo health check |
+| Auth Service | Identita': emissione, rotazione e revoca dei token JWT | `8084` | `/actuator/health` | No (instradamento dal gateway in Fase B) |
 | Book Service | Gestione del catalogo libri | `8081` | `/actuator/health` | No (solo via gateway) |
 | Member Service | Gestione degli utenti iscritti | `8082` | `/actuator/health` | No (solo via gateway) |
 | Loan Service | Gestione dei prestiti | `8083` | `/actuator/health` | No (solo via gateway) |
 | MySQL | Database relazionale | `3306` | — | No (solo rete interna Docker) |
 
 > **Nota:** L'unico punto di ingresso e' il **API Gateway sulla porta `8080`**. I microservizi non sono direttamente raggiungibili dall'esterno.
+>
+> **Nota:** `identity-common` non compare in tabella perche' non e' un servizio: e' la libreria Maven condivisa (validazione JWT downstream), senza container e senza porta.
 
 ## Health Check
 
@@ -28,8 +31,7 @@ Ogni microservizio espone l'endpoint `/actuator/health` di Spring Boot Actuator 
 ## Tecnologie utilizzate
 
 - Java 21
-- Spring Boot 4.1.0 / 3.4.1 (API Gateway)
-- Spring Cloud Gateway (API Gateway)
+- Spring Boot 3.4.1
 - Spring Boot Starter WebFlux (API Gateway)
 - Spring Web (Microservizi)
 - Spring Data JPA + Hibernate
@@ -40,6 +42,7 @@ Ogni microservizio espone l'endpoint `/actuator/health` di Spring Boot Actuator 
 - Spring Boot Actuator (health check su tutti i microservizi)
 - Spring Validation
 - Springdoc OpenAPI 2.8.9
+- JUnit 5 + Mockito + AssertJ (test)
 - MySQL 8 (containerizzato)
 - Flyway (migrazioni database)
 - Bucket4j (rate limiting sul gateway)
@@ -59,7 +62,7 @@ Tutte le chiamate instradate tramite il Gateway sulla porta `8080` richiedono un
 Authorization: Bearer <jwt>
 ```
 
-Il token si ottiene dall'endpoint di sviluppo del gateway:
+Il token si ottiene dall'endpoint di sviluppo del gateway (temporaneo: la dismissione e' prevista in Fase B, vedi `TODO.md` B1; l'emissione definitiva e' in `auth-service`, sezione *Auth Service*):
 
 ```bash
 curl http://localhost:8080/auth/token
@@ -166,6 +169,37 @@ docker-compose down -v
 
 ---
 
+## Auth Service (Porta interna `8084`)
+
+Microservizio di identita': emette, rinnova e revoca i token JWT usati dal resto dell'ecosistema. Espone solo chiamate `POST` e risponde con `Cache-Control: no-store` (un token in cache e' una sessione regalata).
+
+### Endpoints
+
+| Metodo | Endpoint | Descrizione |
+|---|---|---|
+| POST | `/auth/login` | `username` + `password` → coppia access/refresh |
+| POST | `/auth/refresh` | `refreshToken` → nuova coppia (rotazione del refresh) |
+| POST | `/auth/logout` | Revoca l'access token in `Authorization` e, se presente, il refresh nel body (`204`, idempotente) |
+
+Risposta di login e refresh:
+
+```json
+{
+  "accessToken": "<jwt>",
+  "refreshToken": "<jwt>",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+```
+
+L'access token dura 15 minuti e porta i claim `sub` (username), `roles`, `jti` e `uid`; il refresh token dura 7 giorni e ha un `jti` distinto, senza ruoli.
+
+Errori nel formato `{code, message}`: `400 VALIDATION_ERROR`, `401 INVALID_CREDENTIALS`, `401 INVALID_TOKEN`, `401 TOKEN_REUSE_DETECTED`, `401 MISSING_ACCESS_TOKEN`.
+
+> Gli endpoint sono raggiungibili sulla rete interna Docker; l'instradamento pubblico dal gateway e' previsto in Fase B (B1).
+
+---
+
 ## Book Service (Porta interna `8081` / Gateway `8080`)
 
 Microservizio dedicato alla gestione del catalogo libri.
@@ -226,17 +260,15 @@ Microservizio dedicato alla gestione dei prestiti. Interagisce internamente via 
 
 ```
 Library-Microservice-Architecture/
-├── .opencode/                 (agenti e comandi di automazione)
-├── AGENTS.md                  (documentazione degli agenti)
 ├── pom.xml                    (parent multi-modulo)
 ├── docker-compose.yml         (configurazione orchestratore docker)
-├── docker-compose.school.yml  (variante per ambiente scolastico)
 ├── .env.example               (template variabili d'ambiente)
 ├── mysql/
 │   └── init.sql               (script inizializzazione database)
 ├── config-repo/               (configurazione centralizzata YAML)
 │   ├── application.yml        (condivisa tra tutti i servizi)
 │   ├── api-gateway.yml
+│   ├── auth-service.yml
 │   ├── book-service.yml
 │   ├── member-service.yml
 │   └── loan-service.yml
@@ -246,17 +278,21 @@ Library-Microservice-Architecture/
 ├── api-gateway/               (API Gateway del sistema)
 │   ├── Dockerfile
 │   └── src/main/
+├── identity-common/           (libreria condivisa: validazione JWT)
+│   └── src/
+├── auth-service/              (Identita': login, refresh, logout)
+│   ├── Dockerfile
+│   └── src/main/
 ├── book-service/              (Catalogo libri)
 │   ├── Dockerfile
 │   └── src/main/
 ├── member-service/            (Gestione iscritti)
 │   ├── Dockerfile
 │   └── src/main/
-└── loan-service/              (Gestione prestiti)
-    ├── Dockerfile
-    └── src/main/
-├── .opencode/                 (agenti e comandi di automazione)
-├── AGENTS.md                  (documentazione degli agenti)
+├── loan-service/              (Gestione prestiti)
+│   ├── Dockerfile
+│   └── src/main/
+└── postman/                   (collection e test manuali)
 ```
 
 ---
@@ -267,14 +303,49 @@ Il progetto usa agenti OpenCode di progetto (cartella `.opencode/agent/`) per au
 
 | Agente | Scopo | Quando usarlo |
 |---|---|---|
-| `phase-review` | Verifica i criteri di accettazione della fase corrente (compile, test, endpoint, migrazioni) e propone l'aggiornamento dei checkbox in `TODO.md` | Fine di ogni fase |
+| `phase-review` | Verifica i criteri di accettazione della fase corrente (compile, test, endpoint, migrazioni) e l'allineamento di `README.md`/`TODO.md`/OpenAPI con il repository; propone aggiornamenti senza applicarli | Fine di ogni fase |
 | `test-runner` | Esegue `.\mvnw.cmd test` sul modulo o sull'intero reactor, riassume fallimenti e flaky test | Prima di ogni commit/merge |
 | `api-contract` | Confronta i controller con la collection `postman/` e l'OpenAPI, segnalando drift su route/metodi/status/payload | Dopo modifiche agli endpoint |
 | `migration-guard` | Valida le migrazioni Flyway (numerazione, coerenza con le entity JPA, `ddl-auto: validate`) | Prima del commit di una migrazione |
 | `security-review` | Controlla `permitAll`, validazione JWT, secret fuori dal repo, header/CORS e dipendenze vulnerabili | Prima di un merge in `dev` |
-| `release` | Esegue il flusso di `VERSIONING.md` (feature → dev → prod, tag, backup) | Solo dopo H2–H4 |
+| `release` | Propone, senza eseguire, il flusso di `VERSIONING.md` (feature → dev → prod, tag, backup); le operazioni git restano manuali | Solo dopo H2–H4 |
 
-> Gli agenti **propongono** modifiche e report; non spuntano checkbox né fanno merge automaticamente. La configurazione è versionata in `.opencode/` e documentata in `AGENTS.md`.
+> Gli agenti **propongono** modifiche e report; non spuntano checkbox né fanno merge automaticamente. La configurazione sara' versionata in `.opencode/` e documentata in `AGENTS.md`.
+>
+> **Stato:** pianificati nella Fase A+ di `TODO.md`; `.opencode/` e `AGENTS.md` non sono ancora presenti nel repository.
+
+---
+
+## Test
+
+La suite usa **JUnit 5 + Mockito + AssertJ** con Spring Boot Test (`MockMvc` per il contratto HTTP, `@DataJpaTest` su H2 per la persistenza).
+
+| Modulo | Cosa copre |
+|---|---|
+| `auth-service` | Generazione/validazione JWT, encoding BCrypt, login valido e non valido, refresh con rotazione, revoca `jti`, contratto HTTP |
+| `identity-common` | Parsing e validazione del token nei servizi downstream |
+| `book-service`, `member-service`, `loan-service` | Pattern di resilienza (rate limiter, bulkhead, circuit breaker) |
+
+### Esecuzione
+
+```bash
+# Intero reactor
+.\mvnw.cmd test
+
+# Un modulo con le sue dipendenze (es. auth-service + identity-common)
+.\mvnw.cmd -pl auth-service -am test
+
+# Una singola classe di test
+.\mvnw.cmd -pl auth-service -am test "-Dtest=AuthServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+```
+
+> Su PowerShell gli argomenti `-D` vanno **quotati**: senza virgolette la shell spezza `-Dsurefire...` in due token e Maven risponde con `Unknown lifecycle phase`.
+
+### Configurazione di test
+
+`auth-service/src/test/resources/` isola i test dall'infrastruttura: il Config Server e' disattivato (`spring.config.import=`, `spring.cloud.config.enabled=false`) e il database e' H2 in memoria con Flyway disabilitato e `ddl-auto: create-drop`. Il contratto `security.jwt` (issuer, secret, TTL) e' dichiarato in `application-test.yml`, perche' nei test `config-repo/` non esiste.
+
+> Nota ambiente: su JDK successivi al 24 Mockito non riesce a strumentare classi concrete (Byte Buddy si ferma a Java 24). I test usano mock di **interfacce** e oggetti reali per le classi di dominio, quindi girano senza flag JVM aggiuntivi.
 
 ---
 

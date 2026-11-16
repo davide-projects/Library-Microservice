@@ -21,7 +21,7 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - [x] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout` (la dismissione del vecchio `GET /auth/token` slitta alla Fase B, vedi B1).
 - [x] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Roles` dal gateway + parsing JWT downstream) consumando la libreria `identity-common`, senza logica duplicata nei servizi.
 - [x] A9. `config-repo/auth-service.yml` + secret JWT condiviso via `JWT_SECRET`.
-- [ ] A10. **Unit test**: generazione/validazione token, encoding password, login valido/non valido, revoca (`jti`).
+- [x] A10. **Unit test**: generazione/validazione token, encoding password, login valido/non valido, revoca (`jti`).
 
 ---
 
@@ -37,8 +37,9 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - [ ] A+3. `api-contract`: confronta i controller con la collection `postman/` e con l'OpenAPI, segnala drift su route, metodi, status e payload e propone le modifiche.
 - [ ] A+4. `migration-guard`: valida le nuove migrazioni Flyway (numerazione `V*__*.sql` progressiva, coerenza con le entity JPA, `ddl-auto` solo `validate`).
 - [ ] A+5. `security-review`: controlla `permitAll`, validazione JWT, secret fuori dal repo, header/CORS e dipendenze vulnerabili; blocca il merge su findings critici.
-- [ ] A+6. `release`: esegue il flusso di `VERSIONING.md` (commit su `feature`, merge in `dev`, merge `dev`→`prod`, tag `vX.Y.Z`, sync `backup`) solo dopo H2–H4.
+- [ ] A+6. `release`: propone (senza eseguire) la sequenza di comandi del flusso di `VERSIONING.md` (commit su `feature`, merge in `dev`, merge `dev`→`prod`, tag `vX.Y.Z`, sync `backup`) solo dopo H2–H4; le operazioni git restano manuali.
 - [ ] A+7. Documentare gli agenti in `AGENTS.md` (scopo, quando invocarli, limiti) e verificare che non duplichino regole già presenti in `TODO.md` / `VERSIONING.md`.
+- [ ] A+8. `phase-review` — estensione documentazione: oltre ai criteri di accettazione, verifica che `README.md`, `TODO.md`, OpenAPI e struttura reale del repository siano allineati (sezioni, comandi, file citati) e propone le correzioni senza applicarle. Nessun nuovo agente: stesso ruolo, un controllo in più.
 
 ---
 
