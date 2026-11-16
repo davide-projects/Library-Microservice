@@ -140,7 +140,7 @@ public class AuthService {
                 .sorted()
                 .toList();
 
-        IssuedToken access = tokenProvider.issueAccessToken(user.getUsername(), roles);
+        IssuedToken access = tokenProvider.issueAccessToken(user.getUsername(), user.getId(), roles);
         IssuedToken refresh = tokenProvider.issueRefreshToken(user.getUsername());
         return new TokenPair(access, refresh);
     }

@@ -19,7 +19,7 @@ Piano di lavoro ordinato in un flusso pulito e modulare per completare il backen
 - [x] A5. Entity/repository per utenti e ruoli; password con BCrypt.
 - [x] A6. JWT con claim `roles` (`ROLE_ADMIN` / `ROLE_USER`), subject = username reale, `jti` per revoca; emissione di access + refresh token con `jti` distinti.
 - [x] A7. Endpoint `/auth/login`, `/auth/refresh`, `/auth/logout` (la dismissione del vecchio `GET /auth/token` slitta alla Fase B, vedi B1).
-- [ ] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Role` dal gateway + parsing JWT downstream) consumando la libreria `identity-common`, senza logica duplicata nei servizi.
+- [x] A8. Propagazione identità ai servizi (header `X-User-Id` / `X-User-Roles` dal gateway + parsing JWT downstream) consumando la libreria `identity-common`, senza logica duplicata nei servizi.
 - [x] A9. `config-repo/auth-service.yml` + secret JWT condiviso via `JWT_SECRET`.
 - [ ] A10. **Unit test**: generazione/validazione token, encoding password, login valido/non valido, revoca (`jti`).
 

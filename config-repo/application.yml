@@ -30,6 +30,13 @@ springdoc:
     path: /v3/api-docs
     enabled: false
 
+# Contratto di identita' condiviso: i servizi downstream rivalidano gli access token
+# emessi da auth-service (issuer + secret). Gli header X-User-* sono solo metadati.
+security:
+  jwt:
+    issuer: auth-service
+    secret: ${JWT_SECRET}
+
 logging:
   level:
     root: WARN

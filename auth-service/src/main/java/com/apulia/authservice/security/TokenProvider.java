@@ -15,10 +15,11 @@ public interface TokenProvider {
     /**
      * Emette un access token.
      *
-     * <p>I ruoli arrivano già pronti e non l'entità {@code User}: questo layer non deve
-     * conoscere JPA, così resta testabile senza database.</p>
+     * <p>Ruoli e id arrivano già pronti e non l'entità {@code User}: questo layer non deve
+     * conoscere JPA, così resta testabile senza database. L'id finisce nel claim
+     * {@code uid}, che i servizi downstream usano per audit e dati per utente.</p>
      */
-    IssuedToken issueAccessToken(String username, Collection<String> roles);
+    IssuedToken issueAccessToken(String username, long userId, Collection<String> roles);
 
     /**
      * Emette un refresh token. Non porta ruoli: serve solo a farsi rilasciare

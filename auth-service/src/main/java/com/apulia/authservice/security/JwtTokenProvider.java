@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -41,14 +42,14 @@ public class JwtTokenProvider implements TokenProvider {
     }
 
     @Override
-    public IssuedToken issueAccessToken(String username, Collection<String> roles) {
-        return issue(username, List.copyOf(roles), TokenType.ACCESS, accessTokenTtl);
+    public IssuedToken issueAccessToken(String username, long userId, Collection<String> roles) {
+        return issue(username, userId, List.copyOf(roles), TokenType.ACCESS, accessTokenTtl);
     }
 
     @Override
     public IssuedToken issueRefreshToken(String username) {
         // Il refresh token non porta ruoli: claim minimi, come da best practice.
-        return issue(username, List.of(), TokenType.REFRESH, refreshTokenTtl);
+        return issue(username, null, List.of(), TokenType.REFRESH, refreshTokenTtl);
     }
 
     @Override
@@ -88,22 +89,27 @@ public class JwtTokenProvider implements TokenProvider {
         }
     }
 
-    private IssuedToken issue(String username, List<String> roles, TokenType type, Duration ttl) {
+    private IssuedToken issue(String username, Long userId, List<String> roles, TokenType type, Duration ttl) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(ttl);
         String jti = UUID.randomUUID().toString();
 
         // jjwt 0.12 espone un API fluente: ogni claim ha il suo metodo.
-        String value = Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(username)
                 .id(jti)                    // claim "jti": è la chiave della revoca
                 .issuer(issuer)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
                 .claim("typ", type.name())
-                .claim("roles", roles)
-                .signWith(key)
-                .compact();
+                .claim("roles", roles);
+
+        // L'id viaggia solo nell'access token: al refresh non serve e non va esposto.
+        if (userId != null) {
+            builder.claim("uid", userId);
+        }
+
+        String value = builder.signWith(key).compact();
 
         return new IssuedToken(value, jti, now, expiresAt);
     }
